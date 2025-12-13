@@ -18,7 +18,6 @@
             android:exported="true"
             android:label="@string/title_activity_player_stats"
             android:theme="@style/Theme.CrikStats">
-            <!-- Add this intent filter -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

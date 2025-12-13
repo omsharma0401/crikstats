@@ -56,12 +56,8 @@ dependencies {
 
     // Dagger (for manual injection in feature module)
     val daggerVersion = "2.57.2"
-    implementation("com.google.dagger:dagger:$daggerVersion")
     ksp("com.google.dagger:dagger-compiler:$daggerVersion")
-
-    // ✅ ADD HILT (needed because app module uses it, but we won't use @AndroidEntryPoint here)
     implementation("com.google.dagger:hilt-android:$daggerVersion")
-    // ❌ DON'T add hilt-compiler with KSP - that would try to process @AndroidEntryPoint
 
     // Retrofit & JSON Converter
     val retrofitVersion = "3.0.0"
