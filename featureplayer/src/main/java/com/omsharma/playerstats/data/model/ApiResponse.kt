@@ -1,4 +1,4 @@
-package com.omsharma.crikstats.data.model
+package com.omsharma.playerstats.data.model
 
 data class ApiResponse<T>(
     val statusCode: Int,
