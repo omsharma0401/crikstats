@@ -26,7 +26,7 @@ This structure ensures scalability, reduced initial APK size, and clean ownershi
 
 ### settings.gradle
 
-The dynamic feature module is registered at the project level in `settings.gradle`:
+The dynamic feature module is registered at the project level:
 
 ```gradle
 rootProject.name = "CrikStats"
@@ -34,19 +34,60 @@ include(":app")
 include(":featureplayer")
 ```
 
+### Project-level Gradle Configuration
+
+The Dynamic Feature plugin is declared in the root `build.gradle.kts` so it can be applied by feature modules:
+
+```kotlin
+plugins {
+    id("com.android.application") version "8.1.4" apply false
+    id("org.jetbrains.kotlin.android") version "1.8.10" apply false
+    id("com.android.dynamic-feature") version "8.1.4" apply false
+}
+```
+
+AndroidX and Jetifier are enabled to avoid duplicate class issues:
+
+```properties
+android.useAndroidX=true
+android.enableJetifier=true
+```
+
 ### App Module Configuration
 
-The feature module is linked to the base app in `app/build.gradle.kts`:
+The base app declares the dynamic feature and includes the Play Feature Delivery dependencies required to manage on-demand installs:
 
 ```kotlin
 android {
     dynamicFeatures += setOf(":featureplayer")
 }
+
+dependencies {
+    implementation("com.google.android.play:feature-delivery:2.0.0")
+    implementation("com.google.android.play:feature-delivery-ktx:2.0.0")
+}
+```
+
+These libraries provide access to SplitInstallManager, request handling, and install state callbacks.
+
+### Dynamic Feature Module Gradle Configuration
+
+The feature module applies the dynamic-feature plugin and depends on the base app module:
+
+```kotlin
+plugins {
+    id("com.android.dynamic-feature")
+    id("org.jetbrains.kotlin.android")
+}
+
+dependencies {
+    implementation(project(":app"))
+}
 ```
 
 ### Feature Module Manifest
 
-To ensure the module is downloaded only when requested, the following configuration is added to  
+The on-demand delivery behavior is defined in  
 `featureplayer/src/main/AndroidManifest.xml`:
 
 ```xml
@@ -59,6 +100,8 @@ To ensure the module is downloaded only when requested, the following configurat
     <dist:fusing dist:include="true" />
 </dist:module>
 ```
+
+This ensures the feature module is excluded from the base install and downloaded only when explicitly requested at runtime.
 
 ## 3. Dependency Injection (Hilt + Dynamic Feature Modules)
 
@@ -92,6 +135,10 @@ The standard Run button in Android Studio often installs all modules at once, wh
 
 **Bundletool**  
 Download `bundletool-all-1.18.2.jar` and place it in the project root. Do not rename the file.  
+
+Direct download link:  
+https://github.com/google/bundletool/releases/download/1.18.2/bundletool-all-1.18.2.jar
+
 Alternatively, install via CLI:
 - macOS: `brew install bundletool`
 - Windows: `choco install bundletool`
