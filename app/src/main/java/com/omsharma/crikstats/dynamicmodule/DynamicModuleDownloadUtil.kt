@@ -2,10 +2,14 @@ package com.omsharma.crikstats.dynamicmodule
 
 import android.content.Context
 import android.util.Log
-import com.google.android.play.core.splitinstall.*
+import com.google.android.play.core.splitinstall.SplitInstallException
+import com.google.android.play.core.splitinstall.SplitInstallManager
+import com.google.android.play.core.splitinstall.SplitInstallManagerFactory
+import com.google.android.play.core.splitinstall.SplitInstallRequest
+import com.google.android.play.core.splitinstall.SplitInstallSessionState
+import com.google.android.play.core.splitinstall.SplitInstallStateUpdatedListener
 import com.google.android.play.core.splitinstall.model.SplitInstallErrorCode
 import com.google.android.play.core.splitinstall.model.SplitInstallSessionStatus
-import com.google.android.play.core.splitinstall.testing.FakeSplitInstallManager
 import com.google.android.play.core.splitinstall.testing.FakeSplitInstallManagerFactory
 import com.omsharma.crikstats.BuildConfig
 
@@ -17,7 +21,7 @@ class DynamicModuleDownloadUtil(
     private val isLocalTesting: Boolean = BuildConfig.DEBUG
 ) {
 
-    private lateinit var splitInstallManager: SplitInstallManager
+    private var splitInstallManager: SplitInstallManager
     private var mySessionId = 0
     private var installListener: SplitInstallStateUpdatedListener? = null
 
@@ -31,7 +35,10 @@ class DynamicModuleDownloadUtil(
                 Log.d(TAG, "INIT: Using Real SplitInstallManager (Release)")
             }
         } catch (e: Exception) {
-            Log.w(TAG, "INIT WARNING: Failed to load FakeManager. Falling back to Real Manager. (Did you use 'Run' instead of bundletool?)")
+            Log.w(
+                TAG,
+                "INIT WARNING: Failed to load FakeManager. Falling back to Real Manager. (Did you use 'Run' instead of bundletool?)"
+            )
             splitInstallManager = SplitInstallManagerFactory.create(context)
         }
     }
@@ -56,8 +63,6 @@ class DynamicModuleDownloadUtil(
             .addOnSuccessListener { sessionId ->
                 mySessionId = sessionId
                 Log.d(TAG, "DOWNLOAD: Request Accepted. Session ID: $sessionId")
-                // 🛑 DELETED THE FORCE LOGIC HERE.
-                // We will now patiently wait for the listener to say "INSTALLED".
             }
             .addOnFailureListener { e ->
                 Log.e(TAG, "DOWNLOAD: Request Failed", e)
@@ -101,12 +106,14 @@ class DynamicModuleDownloadUtil(
                     unregisterListener()
                     callback.onInstallSuccess()
                 }
+
                 SplitInstallSessionStatus.FAILED -> {
                     Log.e(TAG, "STATE: Failed (Error code: ${state.errorCode()})")
                     unregisterListener()
                     callback.onFailed("Installation Failed Code: ${state.errorCode()}")
                 }
-                else -> { /* Ignore PENDING, INSTALLING, etc */ }
+
+                else -> {}
             }
         }
     }

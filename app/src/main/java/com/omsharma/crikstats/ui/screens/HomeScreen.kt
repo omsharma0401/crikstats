@@ -22,7 +22,6 @@ fun HomeScreen(
 
     LaunchedEffect(uiState) {
         if (uiState is UiState.Success) {
-            // Navigate via Deep Link to the dynamic module
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("crikstats://player"))
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
             context.startActivity(intent)

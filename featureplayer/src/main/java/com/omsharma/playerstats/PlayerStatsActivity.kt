@@ -25,7 +25,6 @@ class PlayerStatsActivity : ComponentActivity() {
     @Inject
     lateinit var viewModelFactory: PlayerViewModelFactory
 
-    // 👇 THIS IS REQUIRED TO PREVENT CRASHES 👇
     override fun attachBaseContext(newBase: Context?) {
         super.attachBaseContext(newBase)
         SplitCompat.installActivity(this)
@@ -34,7 +33,6 @@ class PlayerStatsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Hilt Dependency Injection Setup
         DaggerPlayerComponent.builder()
             .context(this)
             .appDependencies(

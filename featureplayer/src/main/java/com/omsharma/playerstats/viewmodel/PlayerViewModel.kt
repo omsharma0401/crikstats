@@ -33,9 +33,7 @@ class PlayerViewModel @Inject constructor(
                 is UiState.Failed -> {
                     _playerListState.value = UiState.Failed(result.message)
                 }
-                else -> {
-                    // Idle state logic if needed
-                }
+                else -> {}
             }
         }
     }
