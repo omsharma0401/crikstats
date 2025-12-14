@@ -55,18 +55,13 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
-    // Dagger (for manual injection in feature module)
+    // Dagger (for manual-injection)
     val daggerVersion = "2.57.2"
     ksp("com.google.dagger:dagger-compiler:$daggerVersion")
     implementation("com.google.dagger:hilt-android:$daggerVersion")
 
-    // Retrofit & JSON Converter
+    // Retrofit
     val retrofitVersion = "3.0.0"
     implementation("com.squareup.retrofit2:retrofit:$retrofitVersion")
-    implementation("com.squareup.retrofit2:converter-gson:$retrofitVersion")
-
-    // OkHttp
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
 }
