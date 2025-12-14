@@ -6,7 +6,10 @@ import com.omsharma.playerstats.PlayerStatsActivity
 import dagger.BindsInstance
 import dagger.Component
 
-@Component(dependencies = [PlayerModuleDependencies::class])
+@Component(
+    dependencies = [PlayerModuleDependencies::class],
+    modules = [PlayerInternalModule::class]
+)
 interface PlayerComponent {
     fun inject(activity: PlayerStatsActivity)
 

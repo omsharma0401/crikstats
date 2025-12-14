@@ -8,5 +8,5 @@ import retrofit2.Retrofit
 @EntryPoint
 @InstallIn(SingletonComponent::class)
 interface PlayerModuleDependencies {
-    fun retrofit(): Retrofit
+    fun provideRetrofit(): Retrofit
 }

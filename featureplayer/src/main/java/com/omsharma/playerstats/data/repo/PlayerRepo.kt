@@ -4,18 +4,14 @@ import com.omsharma.crikstats.state.UiState
 import com.omsharma.playerstats.data.model.ApiResponse
 import com.omsharma.playerstats.data.model.PlayerData
 import com.omsharma.playerstats.data.remote.PlayerApiService
-import retrofit2.Retrofit
 import java.io.IOException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
 import javax.inject.Inject
 
 class PlayerRepo @Inject constructor(
-    private val retrofit: Retrofit
+    private val apiService: PlayerApiService
 ) {
-    private val apiService: PlayerApiService by lazy {
-        retrofit.create(PlayerApiService::class.java)
-    }
 
     suspend fun getPlayerStats(): UiState<ApiResponse<List<PlayerData>>> {
         return try {
@@ -28,13 +24,8 @@ class PlayerRepo @Inject constructor(
                     } ?: UiState.Failed("No Data Found")
                 }
 
-                response.code() in 500..599 -> {
-                    UiState.Failed("Server error: ${response.code()}")
-                }
-
-                else -> {
-                    UiState.Failed("API Error: ${response.code()} - ${response.message()}")
-                }
+                response.code() in 500..599 -> UiState.Failed("Server error: ${response.code()}")
+                else -> UiState.Failed("API Error: ${response.code()} - ${response.message()}")
             }
         } catch (e: UnknownHostException) {
             UiState.Failed("No Internet Connection")
