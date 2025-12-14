@@ -1,40 +1,55 @@
 package com.omsharma.crikstats
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.google.android.play.core.splitcompat.SplitCompat
 import com.omsharma.crikstats.dynamicmodule.DynamicDeliveryCallback
 import com.omsharma.crikstats.dynamicmodule.DynamicModuleDownloadUtil
 import com.omsharma.crikstats.ui.components.DownloadModuleConfirmationDialog
 import com.omsharma.crikstats.ui.components.DynamicModuleDownloadButton
 import com.omsharma.crikstats.ui.theme.CrikStatsTheme
-import com.omsharma.crikstats.util.Constants.BASE_MODULE
-import com.omsharma.crikstats.util.Constants.FEATURE_MODULE
 import dagger.hilt.android.AndroidEntryPoint
 import java.util.Calendar
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity(), DynamicDeliveryCallback {
 
-    private val PLAYER_STATS_DYNAMIC_MODULE = "player_stats_module"
-    private lateinit var dynamicModuleDownloadUtil: DynamicModuleDownloadUtil
-    private var logState = mutableStateOf("Activity Log:\n")
+    // ✅ CHECK: Must match the 'dynamicFeatures' name in app/build.gradle
+    private val PLAYER_STATS_DYNAMIC_MODULE = "featureplayer"
 
+    private lateinit var dynamicModuleDownloadUtil: DynamicModuleDownloadUtil
+
+    // UI State for Logging
+    private var logState = mutableStateOf("Ready to test.\n")
     private var dialogState = mutableStateOf(false)
 
+    // ✅ REQUIRED: SplitCompat for the Base Activity
+    override fun attachBaseContext(newBase: Context?) {
+        super.attachBaseContext(newBase)
+        SplitCompat.installActivity(this)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // Init the util (It will log "INIT: Using..." in Logcat)
         dynamicModuleDownloadUtil = DynamicModuleDownloadUtil(baseContext, this)
 
         setContent {
@@ -46,57 +61,99 @@ class MainActivity : ComponentActivity(), DynamicDeliveryCallback {
 
     @Composable
     fun ContentBody() {
-        DynamicModuleDownloadButton {
-            openPlayerStatsFeature()
+        // 1. The Download Button
+
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            DynamicModuleDownloadButton {
+                logState.value += "--> Button Clicked!\n"
+                openPlayerStatsFeature()
+            }
         }
 
-        DownloadModuleConfirmationDialog(dialogState, ::downloadDynamicModule)
+
+
+        // 2. The On-Screen Log (Scrollable)
+        LazyColumn(modifier = Modifier.padding(top = 20.dp)) {
+            item {
+                Text(
+                    text = logState.value,
+                    modifier = Modifier.fillMaxWidth().padding(16.dp)
+                )
+            }
+        }
+
+        // 3. The Confirmation Dialog
+        DownloadModuleConfirmationDialog(dialogState) {
+            logState.value += "--> Dialog Confirmed. Starting Download...\n"
+            downloadDynamicModule()
+        }
     }
 
     private fun openPlayerStatsFeature() {
-        if (dynamicModuleDownloadUtil.isModuleDownloaded(PLAYER_STATS_DYNAMIC_MODULE)) {
-            logState.value += "${getCurrentTimestamp()}: Module is already downloaded.\n"
+        // Check if already installed
+        val isDownloaded = dynamicModuleDownloadUtil.isModuleDownloaded(PLAYER_STATS_DYNAMIC_MODULE)
+
+        if (isDownloaded) {
+            logState.value += "Module found. Launching Activity...\n"
             startPlayerStatsActivity()
         } else {
+            logState.value += "Module NOT found. Showing Confirmation Dialog.\n"
             dialogState.value = true
         }
     }
 
     private fun startPlayerStatsActivity() {
-        val intent = Intent()
-        intent.setClassName(
-            BASE_MODULE,
-            FEATURE_MODULE
-        )
-        startActivity(intent)
+        try {
+            // ✅ CHECK: Ensure package name is 100% correct
+            val intent = Intent().setClassName(
+                packageName,
+                "com.omsharma.playerstats.PlayerStatsActivity"
+            )
+            startActivity(intent)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Launch Failed", e)
+            logState.value += "❌ CRASH LAUNCHING ACTIVITY: ${e.message}\n"
+        }
     }
 
     private fun downloadDynamicModule() {
-        logState.value += "${getCurrentTimestamp()}: Call for download.\n"
         dynamicModuleDownloadUtil.downloadDynamicModule(PLAYER_STATS_DYNAMIC_MODULE)
     }
 
+    // --- Callbacks ---
+
     override fun onDownloading() {
-        logState.value += "${getCurrentTimestamp()}: Downloading...\n"
+        val msg = "${getTimestamp()}: Status: DOWNLOADING..."
+        logState.value += "$msg\n"
+        Log.d("MainActivity", msg)
     }
 
     override fun onDownloadCompleted() {
-        logState.value += "${getCurrentTimestamp()}: Module download completed.\n"
+        val msg = "${getTimestamp()}: Status: DOWNLOAD COMPLETE."
+        logState.value += "$msg\n"
+        Log.d("MainActivity", msg)
     }
 
     override fun onInstallSuccess() {
-        logState.value += "${getCurrentTimestamp()}: Module install Success!\n"
+        val msg = "${getTimestamp()}: Status: INSTALL SUCCESS! Launching..."
+        logState.value += "$msg\n"
+        Log.d("MainActivity", msg)
+        // Launch immediately after install
         startPlayerStatsActivity()
     }
 
     override fun onFailed(errorMessage: String) {
-        logState.value += "${getCurrentTimestamp()}: $errorMessage\n"
+        val msg = "${getTimestamp()}: FAILED: $errorMessage"
+        logState.value += "$msg\n"
+        Log.e("MainActivity", msg)
     }
 
-    private fun getCurrentTimestamp(): String {
-        val calendar = Calendar.getInstance()
-        return "${calendar.get(Calendar.HOUR).toString().padStart(2, '0')}:" +
-                "${calendar.get(Calendar.MINUTE).toString().padStart(2, '0')}:" +
-                calendar.get(Calendar.SECOND).toString().padStart(2, '0')
+    private fun getTimestamp(): String {
+        val c = Calendar.getInstance()
+        return "${c.get(Calendar.HOUR_OF_DAY)}:${c.get(Calendar.MINUTE)}:${c.get(Calendar.SECOND)}"
     }
 }

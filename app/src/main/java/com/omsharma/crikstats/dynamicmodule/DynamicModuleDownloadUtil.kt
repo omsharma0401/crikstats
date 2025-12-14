@@ -2,108 +2,112 @@ package com.omsharma.crikstats.dynamicmodule
 
 import android.content.Context
 import android.util.Log
-import com.google.android.play.core.splitinstall.SplitInstallException
-import com.google.android.play.core.splitinstall.SplitInstallManager
-import com.google.android.play.core.splitinstall.SplitInstallManagerFactory
-import com.google.android.play.core.splitinstall.SplitInstallRequest
-import com.google.android.play.core.splitinstall.SplitInstallSessionState
-import com.google.android.play.core.splitinstall.SplitInstallStateUpdatedListener
+import com.google.android.play.core.splitinstall.*
 import com.google.android.play.core.splitinstall.model.SplitInstallErrorCode
 import com.google.android.play.core.splitinstall.model.SplitInstallSessionStatus
+import com.google.android.play.core.splitinstall.testing.FakeSplitInstallManager
+import com.google.android.play.core.splitinstall.testing.FakeSplitInstallManagerFactory
+import com.omsharma.crikstats.BuildConfig
 
-const val TAG = "dynamic_module_util"
+const val TAG = "DynamicModuleUtil"
 
 class DynamicModuleDownloadUtil(
     context: Context,
-    private val callback: DynamicDeliveryCallback
+    private val callback: DynamicDeliveryCallback,
+    private val isLocalTesting: Boolean = BuildConfig.DEBUG
 ) {
 
     private lateinit var splitInstallManager: SplitInstallManager
     private var mySessionId = 0
+    private var installListener: SplitInstallStateUpdatedListener? = null
 
     init {
-        if (!::splitInstallManager.isInitialized) {
+        try {
+            if (isLocalTesting) {
+                splitInstallManager = FakeSplitInstallManagerFactory.create(context)
+                Log.d(TAG, "INIT: Using FakeSplitInstallManager (Local Testing)")
+            } else {
+                splitInstallManager = SplitInstallManagerFactory.create(context)
+                Log.d(TAG, "INIT: Using Real SplitInstallManager (Release)")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "INIT WARNING: Failed to load FakeManager. Falling back to Real Manager. (Did you use 'Run' instead of bundletool?)")
             splitInstallManager = SplitInstallManagerFactory.create(context)
         }
     }
 
     fun isModuleDownloaded(moduleName: String): Boolean {
-        return splitInstallManager.installedModules.contains(moduleName)
+        val installed = splitInstallManager.installedModules.contains(moduleName)
+        Log.d(TAG, "CHECK: Is module '$moduleName' installed? -> $installed")
+        return installed
     }
 
     fun downloadDynamicModule(moduleName: String) {
+        Log.d(TAG, "DOWNLOAD: Starting request for '$moduleName'...")
+
         val request = SplitInstallRequest.newBuilder()
             .addModule(moduleName)
             .build()
 
-        val listener = SplitInstallStateUpdatedListener { state -> handleInstallStates(state) }
-        splitInstallManager.registerListener(listener)
+        installListener = SplitInstallStateUpdatedListener { state -> handleInstallStates(state) }
+        installListener?.let { splitInstallManager.registerListener(it) }
 
         splitInstallManager.startInstall(request)
             .addOnSuccessListener { sessionId ->
                 mySessionId = sessionId
+                Log.d(TAG, "DOWNLOAD: Request Accepted. Session ID: $sessionId")
+                // 🛑 DELETED THE FORCE LOGIC HERE.
+                // We will now patiently wait for the listener to say "INSTALLED".
             }
             .addOnFailureListener { e ->
-                Log.d(TAG, "Exception: $e")
-                handleInstallFailure((e as SplitInstallException).errorCode)
+                Log.e(TAG, "DOWNLOAD: Request Failed", e)
+                unregisterListener()
+                if (e is SplitInstallException) {
+                    handleInstallFailure(e.errorCode)
+                } else {
+                    callback.onFailed("Exception: ${e.message}")
+                }
             }
+    }
 
-        splitInstallManager.unregisterListener(listener)
+    private fun unregisterListener() {
+        installListener?.let {
+            splitInstallManager.unregisterListener(it)
+            installListener = null
+        }
     }
 
     private fun handleInstallFailure(errorCode: Int) {
-        when (errorCode) {
-            SplitInstallErrorCode.NETWORK_ERROR -> {
-                callback.onFailed("No internet found")
-            }
-
-            SplitInstallErrorCode.MODULE_UNAVAILABLE -> {
-                callback.onFailed("Module unavailable")
-            }
-
-            SplitInstallErrorCode.ACTIVE_SESSIONS_LIMIT_EXCEEDED -> {
-                callback.onFailed("Active session limit exceeded")
-            }
-
-            SplitInstallErrorCode.INSUFFICIENT_STORAGE -> {
-                callback.onFailed("Insufficient storage")
-            }
-
-            SplitInstallErrorCode.PLAY_STORE_NOT_FOUND -> {
-                callback.onFailed("Google Play Store Not Found!")
-            }
-
-            else -> {
-                callback.onFailed("Something went wrong! Try again later")
-            }
+        val message = when (errorCode) {
+            SplitInstallErrorCode.NETWORK_ERROR -> "Network Error"
+            SplitInstallErrorCode.MODULE_UNAVAILABLE -> "Module Unavailable (Check Gradle Name!)"
+            SplitInstallErrorCode.INSUFFICIENT_STORAGE -> "Insufficient Storage"
+            SplitInstallErrorCode.ACCESS_DENIED -> "Access Denied (Permissions?)"
+            else -> "Error Code: $errorCode"
         }
+        Log.e(TAG, "DOWNLOAD FAILURE: $message")
+        callback.onFailed(message)
     }
 
     private fun handleInstallStates(state: SplitInstallSessionState) {
         if (state.sessionId() == mySessionId) {
+            Log.d(TAG, "STATE UPDATE: Status = ${state.status()}")
+
             when (state.status()) {
-                SplitInstallSessionStatus.DOWNLOADING -> {
-                    callback.onDownloading()
-                }
-
-                SplitInstallSessionStatus.DOWNLOADED -> {
-                    callback.onDownloadCompleted()
-                }
-
+                SplitInstallSessionStatus.DOWNLOADING -> callback.onDownloading()
+                SplitInstallSessionStatus.DOWNLOADED -> callback.onDownloadCompleted()
                 SplitInstallSessionStatus.INSTALLED -> {
-                    Log.d(TAG, "Dynamic Module downloaded")
+                    Log.d(TAG, "STATE: Installed confirmed.")
+                    unregisterListener()
                     callback.onInstallSuccess()
                 }
-
                 SplitInstallSessionStatus.FAILED -> {
-                    callback.onFailed("Installation failed")
+                    Log.e(TAG, "STATE: Failed (Error code: ${state.errorCode()})")
+                    unregisterListener()
+                    callback.onFailed("Installation Failed Code: ${state.errorCode()}")
                 }
-
-                SplitInstallSessionStatus.CANCELED -> {
-                    callback.onFailed("Installation Cancelled")
-                }
+                else -> { /* Ignore PENDING, INSTALLING, etc */ }
             }
         }
     }
-
 }

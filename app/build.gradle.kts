@@ -18,7 +18,7 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.omsharma.crikstats.test"
+        applicationId = "com.omsharma.crikstats"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

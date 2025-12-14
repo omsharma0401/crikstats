@@ -1,37 +1,6 @@
 package com.omsharma.playerstats
 
-//class PlayerStatsActivity : ComponentActivity() {
-//
-//    @Inject
-//    lateinit var viewModelFactory: PlayerViewModelFactory
-//
-//    private lateinit var viewModel: PlayerViewModel
-//
-//    override fun onCreate(savedInstanceState: Bundle?) {
-//        super.onCreate(savedInstanceState)
-//
-//        DaggerPlayerComponent.builder()
-//            .context(this)
-//            .appDependencies(
-//                EntryPointAccessors.fromApplication(
-//                    applicationContext,
-//                    PlayerModuleDependencies::class.java
-//                )
-//            )
-//            .build()
-//            .inject(this)
-//
-//        viewModel = ViewModelProvider(this, viewModelFactory)[PlayerViewModel::class.java]
-//
-//        setContent {
-//            PlayerStatsScreen(
-//                viewModel = viewModel,
-//                onBack = { finish() }
-//            )
-//        }
-//    }
-//}
-
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -40,6 +9,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModelProvider
+// 👇 CRITICAL IMPORT
+import com.google.android.play.core.splitcompat.SplitCompat
 import com.omsharma.crikstats.di.PlayerModuleDependencies
 import com.omsharma.playerstats.di.DaggerPlayerComponent
 import com.omsharma.playerstats.ui.screens.PlayerStatsScreen
@@ -54,10 +25,16 @@ class PlayerStatsActivity : ComponentActivity() {
     @Inject
     lateinit var viewModelFactory: PlayerViewModelFactory
 
+    // 👇 THIS IS REQUIRED TO PREVENT CRASHES 👇
+    override fun attachBaseContext(newBase: Context?) {
+        super.attachBaseContext(newBase)
+        SplitCompat.installActivity(this)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-
+        // Hilt Dependency Injection Setup
         DaggerPlayerComponent.builder()
             .context(this)
             .appDependencies(
@@ -69,12 +46,10 @@ class PlayerStatsActivity : ComponentActivity() {
             .build()
             .inject(this)
 
-        val viewModel =
-            ViewModelProvider(this, viewModelFactory)[PlayerViewModel::class.java]
+        val viewModel = ViewModelProvider(this, viewModelFactory)[PlayerViewModel::class.java]
 
         setContent {
             CrikStatsTheme {
-
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -82,7 +57,6 @@ class PlayerStatsActivity : ComponentActivity() {
                     PlayerStatsScreen(
                         viewModel = viewModel,
                         onBack = { finish() }
-
                     )
                 }
             }
