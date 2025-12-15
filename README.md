@@ -136,6 +136,8 @@ The standard Run button in Android Studio often installs all modules at once, wh
 **Bundletool**  
 Download `bundletool-all-1.18.2.jar` and place it in the project root. Do not rename the file.
 
+Direct download link:  
+https://github.com/google/bundletool/releases/download/1.18.2/bundletool-all-1.18.2.jar
 
 ⚠️ **Note:**  
 If you prefer to use Bundletool installed globally via a package manager, the `deploy_test.sh` script must be modified accordingly. Using a globally installed Bundletool binary is possible, but would require modifying the bash script accordingly. The current script assumes usage of the local `bundletool-all-1.18.2.jar` file and invokes it using `java -jar`. 
